@@ -1,0 +1,8 @@
+base: 'tests/base.jpg'
+query:
+    - 'tests/template*.jpg'
+dimensions: [1000, 700]
+scale: 0.5
+parameters:
+    Match Template:
+        method: 'TM_SQDIFF_NORMED'

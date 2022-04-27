@@ -1,0 +1,2 @@
+ALGORITHM_BF = 'Brute Force'
+ALGORITHM_FLANN = 'FLANN'
