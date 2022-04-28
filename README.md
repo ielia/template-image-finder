@@ -44,7 +44,7 @@ Each element in `parameters` will represent a section in the controls GUI. Each 
 Parameters must not overlap, i.e., a parameter of the same name cannot be found in two different sections of the same algorithm.
 A parameter can show up in a single section in more than one conditional branch, though.
 
-Parameter specs must have one of `float`, `int` or `str` as type.
+Parameter specs must have one of `bool`, `float`, `int` or `str` as type.
 They need also have a default value, even if it is `None`.
 
 These module `PARAMETER_SPECS` will later be condensed into a single `PARAMETER_SPECS` structure for all algorithms in the repository.

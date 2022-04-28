@@ -41,7 +41,19 @@ class ControlsWindow:
             self._current_settings[spec_name] = \
                 ControlsWindow.SETTING_WIDGET_CONSTRUCTORS[specs[spec_name]['type']](self)(
                     conditional_frame, spec_name, specs[spec_name], current_value)
+            value = self._current_settings[spec_name]['var'].get()
+            on_off = self._current_settings[spec_name]['onoff_var'].get()
+            if on_off:
+                self._all_settings['current'][spec_name] = value
+            elif spec_name in self._all_settings['current']:
+                del self._all_settings['current'][spec_name]
         conditional_frame.pack(fill=X)
+
+    def _broadcast_listeners(self):
+        if len(self._listeners) > 0:
+            current = self.current_settings()
+            for listener in self._listeners:
+                listener(**current)
 
     def _build_bool_setting(self, container, name, spec, current_value: bool):
         setting = BooleanVar(self._window, spec['default'] if current_value is None else current_value, name)
@@ -107,11 +119,8 @@ class ControlsWindow:
             del self._all_settings['current'][name]
         for condition_index, conditional in enumerate(self._conditional_frames):
             if name in conditional:
-                self._reread_conditional_settings(condition_index, name, self._all_settings['current'][name])
-        if len(self._listeners) > 0:
-            current = self.current_settings()
-            for listener in self._listeners:
-                listener(**current)
+                self._reread_conditional_settings(condition_index, name, value if on_off else None)
+        self._broadcast_listeners()
 
     def _on_change_algorithm(self, *args):
         self._reread_settings()
@@ -149,7 +158,7 @@ class ControlsWindow:
         all_conditional_specs = self._parameter_specs[algorithm][index]
         conditional_specs = all_conditional_specs[condition_name]
         for condition_value, specs in conditional_specs.items():
-            for var_name in all_conditional_specs[condition_name][condition_value].keys():
+            for var_name in specs.keys():
                 self._remove_current_setting(var_name)
         for condition_value, specs in conditional_specs.items():
             if condition_value == value:
@@ -196,7 +205,6 @@ class ControlsWindow:
             on_off = setting['onoff_var'].get()
             if on_off and value is not None:
                 current[name] = value
-        print('CURRENT SETTINGS:', current)
         return current
 
     def destroy(self):

@@ -4,7 +4,7 @@ from . import simple_convolution_matching, feature_matching
 MODULES = [feature_matching, simple_convolution_matching]
 
 ALL_VALID_SPEC_KEYS = ['default', 'max', 'min', 'nullable', 'options', 'step', 'type']
-ALL_VALID_SPEC_TYPES = [float, int, str]
+ALL_VALID_SPEC_TYPES = [bool, float, int, str]
 NUMERICAL_SPEC_TYPES = [float, int]
 OPTIONS_VALID_SPEC_KEYS = ['default', 'nullable', 'options', 'type']
 
@@ -78,6 +78,8 @@ def check_spec(prefix: str, spec: dict):
     if 'type' not in spec:
         raise Exception(f'Spec {prefix} needs "type".')
     spec_type = spec['type']
+    if spec_type not in ALL_VALID_SPEC_TYPES:
+        raise Exception(f'Spec {prefix} type is not valid: "{spec_type}".')
     if 'default' not in spec:
         raise Exception(f'Spec {prefix} does not contain a default value.')
     spec_default = spec['default']
@@ -108,3 +110,11 @@ for algorithmic_module in MODULES:
 
 PARAMETER_SPECS = reduce(lambda acc, module: accumulate_parameter_specs(acc, module.PARAMETER_SPECS), MODULES,
                          {'algorithms': [], 'parameters': {}, 'plot_functions': {}})
+
+# DEBUGGING:
+# import json
+# def json_default(obj):
+#     if type(obj) in [type, type(lambda x: x)]:
+#         return str(obj)
+#     raise Exception(f'Non-serializable object found: {type(obj)}')
+# print('PARAMETER_SPECS:', json.dumps(PARAMETER_SPECS, sort_keys=False, indent=4, default=json_default))

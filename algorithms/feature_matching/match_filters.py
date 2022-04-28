@@ -8,12 +8,12 @@ MATCH_FILTERING_RATIO = 'ratio threshold'
 MATCH_FILTERING_PARAM_SPECS = [
     {'': {'all': {
         'match_filters_by': {'type': str, 'options': [MATCH_FILTERING_RATIO, MATCH_FILTERING_TOP_N],
-                             'default': MATCH_FILTERING_RATIO},
+                             'default': MATCH_FILTERING_TOP_N},
     }}},
     {'match_filters_by': {
-        MATCH_FILTERING_TOP_N: {'n_matches': {'type': int, 'min': 1, 'max': 100, 'step': 1, 'default': 10}},
         MATCH_FILTERING_RATIO: {'match_ratio_threshold': {'type': float, 'min': 0.01, 'max': 1.00, 'step': 0.01,
                                                           'default': 0.5}},
+        MATCH_FILTERING_TOP_N: {'n_matches': {'type': int, 'min': 1, 'max': 100, 'step': 1, 'default': 10}},
     }},
 ]
 

@@ -21,32 +21,44 @@ KEY_SPACE = 0x20
 KEY_UP_ARROW = 0x10000 * 0x26
 
 
-def create_controls_window(base, query, query_index_ref, view_settings_ref, quitting_ref):
+def create_controls_window(base_image, query_image, query_index_ref, view_settings_ref, quitting_ref):
     controls_window = ControlsWindow(quitting_ref, PARAMETER_SPECS, view_settings_ref)
     return controls_window
 
 
-def fill_param_blanks(parameter_specs, config_params):
+def fill_param_algorithm(algorithm: str, result: dict) -> None:
+    if algorithm not in result:
+        result[algorithm] = {'algorithm': algorithm}
+    elif 'algorithm' not in result[algorithm]:
+        result[algorithm]['algorithm'] = algorithm
+    elif result[algorithm]['algorithm'] != algorithm:
+        raise Exception(f'Algorithm mismatch in configuration file.')
+
+
+def fill_param_blanks(parameter_specs: dict, config_params: dict) -> dict:
     result = config_params.copy()
     for algorithm, conditionals in parameter_specs.items():
+        fill_param_algorithm(algorithm, result)
         for conditional in conditionals:
             for condition, params in conditional.items():
-                for condition_value, specs in params.items():
-                    if algorithm not in result:
-                        if condition == '' or condition == 'algorithm':
-                            result[algorithm] = fill_param_blanks_shallow(algorithm, specs, {})
-                        else:
-                            raise Exception(f'Invalid dependency in settings: "{algorithm}"."{condition}"')
-                    elif condition == '' or condition == 'algorithm' or condition in result[algorithm]:
-                        result[algorithm] = result[algorithm] | \
-                                            fill_param_blanks_shallow(algorithm, specs, result[algorithm])
-                    else:
-                        raise Exception(f'Invalid dependency in settings: "{algorithm}"."{condition}"')
+                if condition == '':
+                    for specs in params.values():
+                        fill_param_blanks_shallow(algorithm, specs, result[algorithm])
+                elif condition not in result[algorithm]:
+                    # This should never happen, due to the checks we make PARAMETER_SPECS pass.
+                    raise Exception(f'Invalid dependency in settings: "{algorithm}"."{condition}"')
+                else:
+                    for condition_value, specs in params.items():
+                        if result[algorithm][condition] == condition_value:
+                            fill_param_blanks_shallow(algorithm, specs, result[algorithm])
+                    for condition_value, specs in params.items():
+                        if result[algorithm][condition] != condition_value:
+                            fill_param_blanks_shallow(algorithm, specs, result[algorithm])
     return result
 
 
-def fill_param_blanks_shallow(algorithm: str, conditional: dict, config_params: dict) -> dict:
-    for key, spec in conditional.items():
+def fill_param_blanks_shallow(algorithm: str, specs: dict, config_params: dict) -> None:
+    for key, spec in specs.items():
         if key in config_params:
             if config_params[key] is None:
                 if 'nullable' not in spec or not spec['nullable']:
@@ -58,10 +70,6 @@ def fill_param_blanks_shallow(algorithm: str, conditional: dict, config_params: 
                 raise Exception(f'Configuration value for "{algorithm}"."{key}" is invalid (not in available options).')
         elif spec['default'] is not None:
             config_params[key] = spec['default']
-    if 'algorithm' in config_params and config_params['algorithm'] != algorithm:
-        raise Exception(f'Configuration value for "{algorithm}"."algorithm" does not match key.')
-    config_params['algorithm'] = algorithm
-    return config_params
 
 
 def get_args():
@@ -127,11 +135,12 @@ def run_plots(plot_window, controls_window, base, query, query_index_ref, settin
     while plot_window.is_open() and not quitting_ref['quitting']:
         if last_params != settings_ref['current'] or last_index != query_index_ref['query_index']:
             last_index = query_index_ref['query_index']
+            # No matter if this is not the one used for comparison, it's newer:
             last_params = settings_ref['current'].copy()
             last_window_dimensions = plot_window.get_window_dimensions()
             a_query = query[last_index]
             plot_window.set_loading()
-            print('<><><><><> PARAMS:', last_params)
+            print('PLOT PARAMETERS:', last_params)
             plotted = plot(base['image'], a_query['image'], **last_params)
             controls_window.record_last_duration(plotted['duration'])
             plot_window.set_plot_image(plotted['image'], f'{base["filename"]} <-- {a_query["filename"]}')
