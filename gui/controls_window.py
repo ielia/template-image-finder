@@ -9,6 +9,14 @@ PADDING_X = 10
 PADDING_Y = 5
 
 
+class FakeBooleanVar:
+    def get(self):
+        return True
+
+    def trace_remove(self, *args):
+        pass
+
+
 class ControlsWindow:
     SETTING_WIDGET_CONSTRUCTORS = {
         bool: lambda self: self._build_bool_setting,
@@ -75,13 +83,18 @@ class ControlsWindow:
                                          to=spec['max'], variable=setting))
 
     # noinspection PyMethodMayBeStatic
-    def _build_nullable_check(self, name, spec, frame, current_value):
+    def _build_nullable_check(self, name, spec, frame, current_value) -> tuple[object, str]:
         is_nullable = 'nullable' in spec and spec['nullable']
-        onoff_var = BooleanVar(self._window, current_value is not None, f'{name}{ON_OFF_VARIABLE_NAME_SUFFIX}')
         if is_nullable:
+            onoff_var = BooleanVar(self._window, current_value is not None, f'{name}{ON_OFF_VARIABLE_NAME_SUFFIX}')
             nullable_checkbox = Checkbutton(frame, text='(on/off)', variable=onoff_var)
             nullable_checkbox.pack(side=LEFT)
-        return onoff_var
+            onoff_cb_name = onoff_var.trace('w', self._on_change)
+        else:
+            # For some reason, on/off variables of non-nullable settings keep disappearing, so this is a patch:
+            onoff_var = FakeBooleanVar()
+            onoff_cb_name = None
+        return onoff_var, onoff_cb_name
 
     def _build_str_setting(self, container, name, spec, current_value: str, callback=None):
         setting = StringVar(self._window, spec['default'] if current_value is None else current_value, name)
@@ -130,8 +143,7 @@ class ControlsWindow:
 
     def _pack_controls(self, container, name, spec, setting, current_value, control_builder, callback=None):
         frame = Frame(container)
-        onoff_var = self._build_nullable_check(name, spec, frame, current_value)
-        onoff_cb_name = onoff_var.trace('w', self._on_change)
+        (onoff_var, onoff_cb_name) = self._build_nullable_check(name, spec, frame, current_value)
         label = Label(frame, text=name + ':')
         control = control_builder(frame)
         var_cb_name = setting.trace('w', self._on_change if callback is None else callback)
@@ -167,11 +179,9 @@ class ControlsWindow:
 
     def _reread_settings(self):
         algorithm = self._algorithm['var'].get()
-        for name in self._current_settings:
-            setting = self._current_settings[name]
-            # setting['container'].pack_forget()  # TODO: Remove this unnecessary line.
-            setting['var'].trace_remove('write', setting['var_cb_name'])
-            setting['onoff_var'].trace_remove('write', setting['onoff_cb_name'])
+        disposable_current_settings = self._current_settings.copy()  # Cannot change a dictionary while iterating.
+        for name in disposable_current_settings:
+            self._remove_current_setting(name)
         for conditional in self._conditional_frames:
             for variable_name, conditional_frame in conditional.items():
                 conditional_frame.pack_forget()
@@ -180,7 +190,6 @@ class ControlsWindow:
         specs_list = self._parameter_specs[algorithm]
         current_settings_raw = self._all_settings['all'][algorithm]
         self._all_settings['current'] = current_settings_raw
-        self._current_settings = {}
         # [ { modkey: { modval1: {}, ...} }, ...]
         for spec_list_index, dependent_specs in enumerate(specs_list):
             if spec_list_index >= len(self._conditional_frames):
